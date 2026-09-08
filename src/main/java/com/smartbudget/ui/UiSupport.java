@@ -5,6 +5,11 @@ import com.smartbudget.service.ValidationException;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.Region;
+import javafx.util.Callback;
 
 import java.text.DecimalFormat;
 import java.util.Optional;
@@ -40,6 +45,42 @@ final class UiSupport {
         Label label = new Label(text);
         label.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
         return label;
+    }
+
+    /**
+     * A table cell that wraps long text over several lines instead of clipping
+     * it with an ellipsis.
+     *
+     * <p>Needed because the AI explanations are full sentences, and a truncated
+     * explanation is worse than none — the user cannot tell whether the reason
+     * given actually applies. The label's width is bound to the column so the
+     * wrap point follows the column as it is resized, and the row grows to fit.
+     */
+    static <S> Callback<TableColumn<S, String>, TableCell<S, String>> wrappingCell() {
+        return column -> new TableCell<>() {
+            private final Label label = new Label();
+
+            {
+                label.setWrapText(true);
+                // Leave room for the cell's own padding, or the text wraps a
+                // character early and the last word drops to its own line.
+                label.maxWidthProperty().bind(column.widthProperty().subtract(14));
+                setPrefHeight(Region.USE_COMPUTED_SIZE);
+            }
+
+            @Override
+            protected void updateItem(String text, boolean empty) {
+                super.updateItem(text, empty);
+                if (empty || text == null || text.isBlank()) {
+                    setGraphic(null);
+                    setTooltip(null);
+                    return;
+                }
+                label.setText(text);
+                setGraphic(label);
+                setTooltip(new Tooltip(text));
+            }
+        };
     }
 
     static Label subtitle(String text) {

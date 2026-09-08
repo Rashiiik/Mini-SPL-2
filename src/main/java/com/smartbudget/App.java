@@ -1,31 +1,56 @@
 package com.smartbudget;
 
+import com.smartbudget.persistence.DataAccessException;
+import com.smartbudget.ui.AppContext;
+import com.smartbudget.ui.MainView;
 import javafx.application.Application;
-import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.layout.StackPane;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
 /**
- * JavaFX entry point for SmartBudget.
+ * JavaFX entry point.
  *
- * <p>Stage 0 renders a placeholder window only. The real shell (navigation +
- * screens) is introduced in Stage 4; keeping this minimal until then means the
- * UI layer is built on top of an already-tested service layer rather than
- * growing alongside it.
+ * <p>Builds the object graph once through {@link AppContext} and hands it to
+ * {@link MainView}. Nothing else in the application constructs a DAO or a
+ * service, so the wiring stays in one readable place.
  */
 public class App extends Application {
 
+    private AppContext context;
+    private MainView mainView;
+
     @Override
     public void start(Stage stage) {
-        Label placeholder = new Label("SmartBudget");
-        StackPane root = new StackPane(placeholder);
-        root.setAlignment(Pos.CENTER);
+        try {
+            context = new AppContext();
+        } catch (DataAccessException e) {
+            // Without a database there is no application, so report clearly and
+            // exit rather than opening a window that cannot do anything.
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("SmartBudget");
+            alert.setHeaderText("Could not open the database");
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+            return;
+        }
 
-        stage.setTitle("SmartBudget");
-        stage.setScene(new Scene(root, 900, 600));
+        mainView = new MainView(context);
+
+        stage.setTitle("SmartBudget — Personal Finance Manager");
+        stage.setScene(mainView.createScene());
+        stage.setMinWidth(900);
+        stage.setMinHeight(600);
         stage.show();
+    }
+
+    @Override
+    public void stop() {
+        if (mainView != null) {
+            mainView.dispose();
+        }
+        if (context != null) {
+            context.shutdown();
+        }
     }
 
     public static void main(String[] args) {
