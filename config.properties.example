@@ -1,0 +1,27 @@
+# SmartBudget AI configuration
+#
+# Copy this file to config.properties and fill in your key.
+# config.properties is git-ignored, so your key is never committed.
+#
+# Every setting can also be supplied as an environment variable, which takes
+# priority over this file. That is the easier option on a shared demo machine.
+#
+# The application is fully functional with no key at all: categorisation falls
+# back to recurring rules and keywords, anomaly explanations are generated from
+# the statistics directly, and nothing requires a network connection.
+
+# Required to enable AI features.  Env: GROQ_API_KEY
+groq.api.key=
+
+# Model IDs vary by account. List what yours can use with:
+#   curl https://api.groq.com/openai/v1/models -H "Authorization: Bearer YOUR_KEY"
+# The values below are verified working for text and vision.
+
+# Env: GROQ_TEXT_MODEL
+groq.text.model=qwen/qwen3.8-27b
+
+# Env: GROQ_VISION_MODEL  (used by receipt import)
+groq.vision.model=qwen/qwen3.8-27b
+
+# Env: GROQ_BASE_URL
+groq.base.url=https://api.groq.com/openai/v1
