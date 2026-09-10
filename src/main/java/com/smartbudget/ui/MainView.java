@@ -74,7 +74,6 @@ public class MainView {
     private void addTab(String title, RefreshableView view) {
         ScrollPane scroller = new ScrollPane(view.node());
         scroller.setFitToWidth(true);
-        scroller.setFitToHeight(true);
 
         Tab tab = new Tab(title, scroller);
         views.put(tab, view);
