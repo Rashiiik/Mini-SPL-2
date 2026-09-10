@@ -4,6 +4,8 @@ import com.smartbudget.ai.AIConfig;
 import com.smartbudget.pattern.adapter.AIProvider;
 import com.smartbudget.pattern.adapter.GroqAdapter;
 import com.smartbudget.pattern.adapter.NullAIProvider;
+import com.smartbudget.pattern.command.CommandHistory;
+import com.smartbudget.pattern.command.NaturalLanguageParser;
 import com.smartbudget.pattern.factory.AccountFactory;
 import com.smartbudget.pattern.observer.BudgetEventBus;
 import com.smartbudget.pattern.strategy.AICategorizationStrategy;
@@ -19,6 +21,7 @@ import com.smartbudget.persistence.dao.TransactionDao;
 import com.smartbudget.service.AccountService;
 import com.smartbudget.service.AnomalyService;
 import com.smartbudget.service.BudgetService;
+import com.smartbudget.service.ReceiptService;
 import com.smartbudget.service.ReportService;
 import com.smartbudget.service.SubscriptionService;
 import com.smartbudget.service.TransactionService;
@@ -53,6 +56,9 @@ public class AppContext {
     private final ReportService reportService;
     private final AnomalyService anomalyService;
     private final SubscriptionService subscriptionService;
+    private final ReceiptService receiptService;
+    private final CommandHistory commandHistory;
+    private final NaturalLanguageParser naturalLanguageParser;
 
     public AppContext() {
         this(Database.getInstance());
@@ -94,6 +100,9 @@ public class AppContext {
                 new AnomalyService(transactionDao, categoryDao, aiInsightDao, aiProvider);
         this.subscriptionService =
                 new SubscriptionService(transactionDao, recurringRuleDao, categoryDao);
+        this.receiptService = new ReceiptService(aiProvider);
+        this.commandHistory = new CommandHistory();
+        this.naturalLanguageParser = new NaturalLanguageParser(aiProvider);
     }
 
     public Database database() {
@@ -138,6 +147,18 @@ public class AppContext {
 
     public SubscriptionService subscriptionService() {
         return subscriptionService;
+    }
+
+    public ReceiptService receiptService() {
+        return receiptService;
+    }
+
+    public CommandHistory commandHistory() {
+        return commandHistory;
+    }
+
+    public NaturalLanguageParser naturalLanguageParser() {
+        return naturalLanguageParser;
     }
 
     public AIProvider aiProvider() {

@@ -3,6 +3,9 @@ package com.smartbudget.ui;
 import com.smartbudget.model.Account;
 import com.smartbudget.model.Category;
 import com.smartbudget.model.Transaction;
+import com.smartbudget.pattern.command.AddTransactionCommand;
+import com.smartbudget.pattern.command.CommandHistory;
+import com.smartbudget.pattern.command.NaturalLanguageParser;
 import com.smartbudget.persistence.dao.CategoryDao;
 import com.smartbudget.service.AccountService;
 import com.smartbudget.service.TransactionService;
@@ -39,6 +42,8 @@ class TransactionsView implements RefreshableView {
     private final TransactionService transactionService;
     private final AccountService accountService;
     private final CategoryDao categoryDao;
+    private final NaturalLanguageParser naturalLanguageParser;
+    private final CommandHistory commandHistory;
     private final Runnable onDataChanged;
 
     private final VBox root = new VBox(12);
@@ -52,6 +57,9 @@ class TransactionsView implements RefreshableView {
     private final CheckBox recurringBox = new CheckBox("Recurring");
     private final Label suggestionLabel = new Label();
 
+    private final TextField naturalLanguageField = new TextField();
+    private final Label undoLabel = new Label();
+
     private final ComboBox<Account> filterAccount = new ComboBox<>();
     private final DatePicker filterFrom = new DatePicker();
     private final DatePicker filterTo = new DatePicker();
@@ -60,10 +68,13 @@ class TransactionsView implements RefreshableView {
     private Map<Integer, String> accountNames = new HashMap<>();
 
     TransactionsView(TransactionService transactionService, AccountService accountService,
-                     CategoryDao categoryDao, Runnable onDataChanged) {
+                     CategoryDao categoryDao, NaturalLanguageParser naturalLanguageParser,
+                     CommandHistory commandHistory, Runnable onDataChanged) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.categoryDao = categoryDao;
+        this.naturalLanguageParser = naturalLanguageParser;
+        this.commandHistory = commandHistory;
         this.onDataChanged = onDataChanged;
         build();
     }
@@ -149,12 +160,61 @@ class TransactionsView implements RefreshableView {
                 new Label("From"), filterFrom, new Label("To"), filterTo, applyFilter, clearFilter);
         filters.setAlignment(Pos.CENTER_LEFT);
 
+        naturalLanguageField.setPromptText("e.g. spent 450 on lunch yesterday");
+        naturalLanguageField.setPrefWidth(320);
+        naturalLanguageField.setOnAction(e -> addFromText());
+
+        Button quickAdd = new Button("Add from text");
+        quickAdd.setOnAction(e -> addFromText());
+
+        Button undoButton = new Button("Undo last");
+        undoButton.setOnAction(e -> undoLast());
+
+        undoLabel.setStyle("-fx-text-fill: #555555;");
+
+        HBox quickEntry = new HBox(8, new Label("Quick entry"), naturalLanguageField,
+                quickAdd, undoButton, undoLabel);
+        quickEntry.setAlignment(Pos.CENTER_LEFT);
+
         root.getChildren().addAll(
                 UiSupport.title("Transactions"),
                 UiSupport.subtitle("Categories are suggested by the "
                         + transactionService.strategyName()
                         + " strategy and can always be overridden."),
-                form, suggestionLabel, filters, table);
+                quickEntry, form, suggestionLabel, filters, table);
+    }
+
+    /**
+     * Parses the typed sentence into a command and runs it through the history,
+     * so the result can be undone if the parser read it wrongly.
+     */
+    private void addFromText() {
+        Account account = accountBox.getValue();
+        if (account == null) {
+            UiSupport.info("No account", "Choose an account before using quick entry.");
+            return;
+        }
+        UiSupport.guard(() -> {
+            Transaction parsed =
+                    naturalLanguageParser.parse(naturalLanguageField.getText(), account.getId());
+            commandHistory.execute(new AddTransactionCommand(transactionService, parsed));
+            naturalLanguageField.clear();
+            refresh();
+            onDataChanged.run();
+        });
+    }
+
+    private void undoLast() {
+        if (!commandHistory.canUndo()) {
+            UiSupport.info("Nothing to undo", "No quick entries have been added this session.");
+            return;
+        }
+        UiSupport.guard(() -> {
+            commandHistory.undoLast().ifPresent(description ->
+                    UiSupport.info("Undone", description));
+            refresh();
+            onDataChanged.run();
+        });
     }
 
     private void updateSuggestion(String description) {
@@ -301,5 +361,9 @@ class TransactionsView implements RefreshableView {
         }
 
         table.setItems(FXCollections.observableArrayList(transactionService.findAll()));
+
+        undoLabel.setText(commandHistory.nextUndoDescription()
+                .map(description -> "Can undo: " + description)
+                .orElse(""));
     }
 }

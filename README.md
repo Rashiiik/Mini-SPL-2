@@ -62,18 +62,75 @@ Relationships are enforced with primary/foreign keys and constraints. Seeder scr
 
 ---
 
-## Probable Design Patterns
+## Design Patterns Used
 
-These patterns were identified because they solve a real structural problem in this application, not to satisfy a checklist. Final selection may be refined as implementation progresses.
+Full justification for each — the problem, why this pattern, alternatives
+rejected, and future benefit — is in [docs/DESIGN.md](docs/DESIGN.md).
 
-| Pattern | Where it's used | Why |
+| Pattern | Where | Why |
 |---|---|---|
-| **Strategy** | `CategorizationStrategy` (AI vs. rule-based fallback); `TransactionSourceStrategy` (manual entry vs. receipt image extraction) | Swappable algorithms behind one interface; app degrades gracefully if AI is unavailable |
-| **Observer** | Budget threshold alerts | Notifies dashboard/UI components when spending exceeds budget, without coupling transaction logic to specific listeners |
-| **Decorator** | Report generation | Wraps a base report with an AI-insight layer without modifying the base report class |
-| **Adapter** | AI provider integration (Groq text + vision models) | Isolates external API calls so switching providers later only touches the adapter |
-| **Factory Method** *(secondary)* | Account creation | Encapsulates type-specific defaults (checking, savings, credit card) |
-| **Command** *(secondary, if implemented)* | Natural-language transaction entry | Parses free-text input into a validated, executable action object |
+| **Strategy** | `CategorizationStrategy` — rule-based and AI implementations | The AI strategy was added without modifying `TransactionService`, and holds the rule-based one as its fallback |
+| **Adapter** | `AIProvider` / `GroqAdapter` / `NullAIProvider` | Confines Groq's OpenAI-shaped JSON to one class; never throws, so degradation is a one-line `orElseGet` |
+| **Observer** | `BudgetEventBus` → `DashboardView` | `BudgetService` does not know a dashboard exists; alerts fire on the crossing, not on every later purchase |
+| **Decorator** | `AIInsightReport` wraps `BaseReport` | Optional AI commentary, toggled by a checkbox at runtime; decorators compose |
+| **Factory Method** | `AccountFactory` | The three account types differ in genuine initial state — a credit balance is debt owed |
+| **Command** | `AddTransactionCommand` + `CommandHistory` | Natural-language entry with a real `undo()` that reverses the balance correctly |
+
+`Database` is the only Singleton, and DAOs receive it by constructor so tests
+inject an in-memory instance instead.
+
+---
+
+## Screens
+
+Dashboard · Accounts · Transactions · Budgets · Receipts · Reports ·
+Subscriptions · Insights
+
+---
+
+## Running
+
+Requires JDK 21 and Maven.
+
+```bash
+mvn javafx:run
+```
+
+The database is created and seeded on first launch and kept afterwards.
+
+```bash
+mvn test
+```
+
+125 tests. None needs a network or a display.
+
+### Enabling AI (optional)
+
+The application is **fully functional without any AI key**. Categorisation falls
+back to recurring rules and keywords, anomaly explanations are generated from the
+statistics, and reports still produce a written insight. Only receipt scanning
+requires AI, and it says so plainly.
+
+To enable it, copy `config.properties.example` to `config.properties` and add a
+Groq API key. That file is git-ignored. A `GROQ_API_KEY` environment variable
+works too and takes priority.
+
+Model IDs vary by account. List yours with:
+
+```bash
+curl https://api.groq.com/openai/v1/models -H "Authorization: Bearer YOUR_KEY"
+```
+
+---
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [docs/DESIGN.md](docs/DESIGN.md) | Architecture, database design, pattern justifications, testing, known limitations |
+| [ER diagram](https://lucid.app/lucidchart/701ef738-8cc7-4856-835a-8a2fdd3db8a8/view) | Six tables with foreign keys and constraints |
+| [UML class diagram](https://lucid.app/lucidchart/e36f3c41-6969-4fe1-a161-6d87a67fefdb/view) | Every class, grouped by layer, with the six patterns labelled |
+| `docs/test-receipts/` | Sample receipt images for testing receipt import |
 
 ---
 

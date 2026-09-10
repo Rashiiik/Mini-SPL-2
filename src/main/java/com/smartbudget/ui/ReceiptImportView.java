@@ -133,11 +133,20 @@ class ReceiptImportView implements RefreshableView {
         if (file == null) {
             return;
         }
-        chosenFile = file.toPath();
-        fileLabel.setText(file.getName());
-        preview.setImage(new Image(file.toURI().toString(), 320, 0, true, true));
-        statusLabel.setText("Image loaded. Press \"Read receipt\" to extract the details.");
-        rawLabel.setText("");
+        UiSupport.guard(() -> {
+            // JavaFX reports a corrupt or unsupported image through isError()
+            // rather than by throwing, so that has to be checked explicitly.
+            Image image = new Image(file.toURI().toString(), 320, 0, true, true);
+            if (image.isError()) {
+                throw new ValidationException(
+                        "That file could not be opened as an image. Try a PNG or JPEG photo.");
+            }
+            preview.setImage(image);
+            chosenFile = file.toPath();
+            fileLabel.setText(file.getName());
+            statusLabel.setText("Image loaded. Press \"Read receipt\" to extract the details.");
+            rawLabel.setText("");
+        });
     }
 
     private void scan() {

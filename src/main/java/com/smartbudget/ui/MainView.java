@@ -9,7 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * The application shell: seven tabs, each a {@link RefreshableView}.
+ * The application shell: eight tabs, each a {@link RefreshableView}.
  *
  * <p>Switching to a tab refreshes it. Saving a transaction affects balances,
  * budgets and reports, so rather than have every screen subscribe to every
@@ -37,10 +37,15 @@ public class MainView {
         AccountsView accounts = new AccountsView(context.accountService(), this::refreshAll);
         TransactionsView transactions = new TransactionsView(
                 context.transactionService(), context.accountService(),
-                context.categoryDao(), this::refreshAll);
+                context.categoryDao(), context.naturalLanguageParser(),
+                context.commandHistory(), this::refreshAll);
         BudgetsView budgets = new BudgetsView(
                 context.budgetService(), context.categoryDao(), this::refreshAll);
-        ReportsView reports = new ReportsView(context.reportService());
+        ReportsView reports = new ReportsView(
+                context.reportService(), context.aiProvider(), context.aiInsightDao());
+        ReceiptImportView receipts = new ReceiptImportView(
+                context.receiptService(), context.transactionService(),
+                context.accountService(), context.categoryDao(), this::refreshAll);
         SubscriptionsView subscriptions =
                 new SubscriptionsView(context.subscriptionService(), this::refreshAll);
         InsightsView insights = new InsightsView(context.anomalyService(),
@@ -50,6 +55,7 @@ public class MainView {
         addTab("Accounts", accounts);
         addTab("Transactions", transactions);
         addTab("Budgets", budgets);
+        addTab("Receipts", receipts);
         addTab("Reports", reports);
         addTab("Subscriptions", subscriptions);
         addTab("Insights", insights);

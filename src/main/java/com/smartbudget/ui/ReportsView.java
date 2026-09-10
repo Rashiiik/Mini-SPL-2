@@ -1,6 +1,12 @@
 package com.smartbudget.ui;
 
+import com.smartbudget.pattern.adapter.AIProvider;
+import com.smartbudget.pattern.decorator.AIInsightReport;
+import com.smartbudget.pattern.decorator.BaseReport;
+import com.smartbudget.pattern.decorator.Report;
+import com.smartbudget.pattern.decorator.ReportSection;
 import com.smartbudget.pattern.observer.BudgetAlert;
+import com.smartbudget.persistence.dao.AIInsightDao;
 import com.smartbudget.service.ReportService;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -8,6 +14,8 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.chart.PieChart;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
@@ -29,22 +37,28 @@ import java.util.Map;
 class ReportsView implements RefreshableView {
 
     private final ReportService reportService;
+    private final AIProvider aiProvider;
+    private final AIInsightDao insightDao;
 
     private final VBox root = new VBox(12);
     private final ComboBox<YearMonth> monthBox = new ComboBox<>();
     private final PieChart breakdownChart = new PieChart();
     private final TableView<BudgetAlert> comparisonTable = new TableView<>();
     private final Label summaryLabel = new Label();
+    private final CheckBox insightToggle = new CheckBox("Include AI insight layer");
+    private final VBox reportBox = new VBox(6);
 
-    ReportsView(ReportService reportService) {
+    ReportsView(ReportService reportService, AIProvider aiProvider, AIInsightDao insightDao) {
         this.reportService = reportService;
+        this.aiProvider = aiProvider;
+        this.insightDao = insightDao;
         build();
     }
 
     private void build() {
         root.setPadding(new Insets(16));
 
-        monthBox.setOnAction(e -> refreshContent());
+        monthBox.setOnAction(e -> UiSupport.guard(this::refreshContent));
 
         breakdownChart.setTitle("Spending by category");
         breakdownChart.setPrefHeight(320);
@@ -80,14 +94,64 @@ class ReportsView implements RefreshableView {
 
         summaryLabel.setStyle("-fx-font-size: 14px;");
 
-        HBox header = new HBox(8, new Label("Month"), monthBox);
+        Button generateButton = new Button("Generate report");
+        generateButton.setOnAction(e -> generateReport());
+
+        // Toggling this swaps a decorated report for a plain one at runtime,
+        // which is the Decorator pattern visible in a single click.
+        insightToggle.setSelected(false);
+
+        HBox header = new HBox(8, new Label("Month"), monthBox, generateButton, insightToggle);
         header.setAlignment(Pos.CENTER_LEFT);
+
+        reportBox.setPadding(new Insets(12));
+        reportBox.setStyle("-fx-background-color: #f7f9fa; -fx-border-color: #dfe4e6; "
+                + "-fx-border-radius: 4; -fx-background-radius: 4;");
+        reportBox.setVisible(false);
+        reportBox.setManaged(false);
 
         root.getChildren().addAll(
                 UiSupport.title("Reports"),
                 header, summaryLabel, breakdownChart,
+                reportBox,
                 UiSupport.subtitle("Budget versus actual"),
                 comparisonTable);
+    }
+
+    /**
+     * Builds a plain report, optionally wrapped in the AI-insight decorator.
+     *
+     * <p>The wrapped and unwrapped objects are used through the same
+     * {@link Report} interface, so the rendering below cannot tell them apart.
+     */
+    private void generateReport() {
+        UiSupport.guard(() -> {
+            YearMonth month = monthBox.getValue() == null ? YearMonth.now() : monthBox.getValue();
+
+            Report report = new BaseReport(reportService, month);
+            if (insightToggle.isSelected()) {
+                report = new AIInsightReport(report, aiProvider, insightDao, reportService, month);
+            }
+
+            reportBox.getChildren().clear();
+            Label heading = new Label(report.title());
+            heading.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
+            reportBox.getChildren().add(heading);
+
+            for (ReportSection section : report.sections()) {
+                Label sectionHeading = new Label(section.heading());
+                sectionHeading.setStyle("-fx-font-weight: bold;");
+                reportBox.getChildren().add(sectionHeading);
+                for (String line : section.lines()) {
+                    Label lineLabel = new Label(line);
+                    lineLabel.setWrapText(true);
+                    lineLabel.setStyle("-fx-font-family: 'Consolas', monospace;");
+                    reportBox.getChildren().add(lineLabel);
+                }
+            }
+            reportBox.setVisible(true);
+            reportBox.setManaged(true);
+        });
     }
 
     private void refreshContent() {

@@ -29,7 +29,7 @@ public class ReceiptService {
             Reply with exactly one line in this format, and nothing else:
             merchant|amount|date
             The amount is the final total as a plain number, no currency symbol.
-            The date is in YYYY-MM-DD format.
+            The date can be in several format but one thing is consistent that month sits at the middle.
             If a field is not readable, write UNKNOWN in its place.""";
 
     private static final List<DateTimeFormatter> DATE_FORMATS = List.of(

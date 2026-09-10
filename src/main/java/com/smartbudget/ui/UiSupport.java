@@ -107,6 +107,14 @@ final class UiSupport {
         } catch (DataAccessException e) {
             show(Alert.AlertType.ERROR, "Database problem", e.getMessage());
             return false;
+        } catch (RuntimeException e) {
+            // Last line of defence. An unexpected failure would otherwise be
+            // swallowed by the JavaFX thread's default handler, leaving a button
+            // that silently does nothing — the hardest kind of bug to report.
+            show(Alert.AlertType.ERROR, "Something went wrong",
+                    e.getClass().getSimpleName()
+                            + (e.getMessage() == null ? "" : ": " + e.getMessage()));
+            return false;
         }
     }
 

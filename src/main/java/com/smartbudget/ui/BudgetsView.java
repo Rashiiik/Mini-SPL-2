@@ -81,7 +81,7 @@ class BudgetsView implements RefreshableView {
         targetField.setPromptText("Monthly target");
         Button setButton = new Button("Set target");
         setButton.setOnAction(e -> setTarget());
-        monthBox.setOnAction(e -> refreshTable());
+        monthBox.setOnAction(e -> UiSupport.guard(this::refreshTable));
 
         HBox form = new HBox(8, new Label("Month"), monthBox,
                 new Label("Category"), categoryBox,
