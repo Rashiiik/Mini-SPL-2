@@ -127,9 +127,9 @@ curl https://api.groq.com/openai/v1/models -H "Authorization: Bearer YOUR_KEY"
 
 | Document | Contents |
 |---|---|
-| [docs/DESIGN.md](docs/DESIGN.md) | Architecture, database design, pattern justifications, testing, known limitations |
-| [ER diagram](https://lucid.app/lucidchart/701ef738-8cc7-4856-835a-8a2fdd3db8a8/view) | Six tables with foreign keys and constraints |
-| [UML class diagram](https://lucid.app/lucidchart/e36f3c41-6969-4fe1-a161-6d87a67fefdb/view) | Every class, grouped by layer, with the six patterns labelled |
+| [docs/DESIGN.pdf](docs/DESIGN.pdf) | Architecture, database design, pattern justifications, testing, known limitations |
+| [ER diagram](docs/ER.pdf) | Six tables with foreign keys and constraints |
+| [UML class diagram](docs/UML.pdf) | 
 | `docs/test-receipts/` | Sample receipt images for testing receipt import |
 
 ---
