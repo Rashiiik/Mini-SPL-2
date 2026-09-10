@@ -65,6 +65,34 @@ FROM (
 JOIN accounts   a ON a.name = v.acc
 JOIN categories c ON c.name = v.cat;
 
+-- Subscription-review demo data, reaching further back than the three months
+-- above because creep is only visible over a longer history.
+--
+-- Each group repeats monthly at a steady amount, so the detector recognises it,
+-- and each then trips one of the two creep signals:
+--   Canva  — charged again this month, but 28% dearer than it started (price rise).
+--   Gym    — three charges, then silence for over the 50-day staleness threshold.
+--   Daraz  — the same, and longer ago, so two abandoned charges are still billing.
+INSERT INTO transactions (account_id, category_id, amount, date, description, is_recurring)
+SELECT a.id, c.id, v.amount,
+       date('now', 'start of month', v.month_offset, v.day_offset),
+       v.description, v.is_recurring
+FROM (
+    SELECT 'City Bank Card' AS acc, 'Subscriptions' AS cat, -500.0 AS amount, '-2 months' AS month_offset, '+2 days' AS day_offset, 'Canva Pro subscription' AS description, 1 AS is_recurring
+    UNION ALL SELECT 'City Bank Card', 'Subscriptions',  -500.0, '-1 month',  '+2 days',  'Canva Pro subscription', 1
+    UNION ALL SELECT 'City Bank Card', 'Subscriptions',  -640.0, '+0 months', '+2 days',  'Canva Pro subscription', 1
+
+    UNION ALL SELECT 'Main Checking',  'Health',        -2500.0, '-5 months', '+6 days',  'Gym membership fee',     1
+    UNION ALL SELECT 'Main Checking',  'Health',        -2500.0, '-4 months', '+6 days',  'Gym membership fee',     1
+    UNION ALL SELECT 'Main Checking',  'Health',        -2500.0, '-3 months', '+6 days',  'Gym membership fee',     1
+
+    UNION ALL SELECT 'City Bank Card', 'Shopping',       -349.0, '-6 months', '+18 days', 'Daraz VIP membership',   1
+    UNION ALL SELECT 'City Bank Card', 'Shopping',       -349.0, '-5 months', '+18 days', 'Daraz VIP membership',   1
+    UNION ALL SELECT 'City Bank Card', 'Shopping',       -349.0, '-4 months', '+18 days', 'Daraz VIP membership',   1
+) AS v
+JOIN accounts   a ON a.name = v.acc
+JOIN categories c ON c.name = v.cat;
+
 INSERT INTO budgets (category_id, month, target_amount)
 SELECT c.id, strftime('%Y-%m', date('now', 'start of month', v.month_offset)), v.target
 FROM (

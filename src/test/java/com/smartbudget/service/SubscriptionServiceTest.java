@@ -148,6 +148,30 @@ class SubscriptionServiceTest {
                 .anyMatch(f -> f.subscription().pattern().contains("steady")));
     }
 
+    /**
+     * The review screen is empty unless the seeded history actually trips the
+     * detector, so the demo data is pinned to the thresholds here. Moving a
+     * threshold without moving the seed would otherwise blank the screen quietly.
+     */
+    @Test
+    @DisplayName("the seeded history produces the findings the review screen shows")
+    void seededHistoryFlagsCreep() {
+        List<SubscriptionService.SubscriptionFinding> findings = subscriptionService.findCreep();
+
+        assertTrue(flagged(findings, "canva", SubscriptionService.CreepReason.PRICE_INCREASE),
+                findings.toString());
+        assertTrue(flagged(findings, "gym membership", SubscriptionService.CreepReason.ABANDONED),
+                findings.toString());
+        assertTrue(flagged(findings, "daraz", SubscriptionService.CreepReason.ABANDONED),
+                findings.toString());
+    }
+
+    private static boolean flagged(List<SubscriptionService.SubscriptionFinding> findings,
+                                   String pattern, SubscriptionService.CreepReason reason) {
+        return findings.stream().anyMatch(finding ->
+                finding.subscription().pattern().contains(pattern) && finding.reason() == reason);
+    }
+
     @Test
     @DisplayName("detected subscriptions become recurring rules, without duplicating on a re-scan")
     void savesRulesIdempotently() {
