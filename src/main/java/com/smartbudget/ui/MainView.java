@@ -28,7 +28,8 @@ public class MainView {
         this.context = context;
 
         dashboard = new DashboardView(
-                context.accountService(), context.budgetService(), context.reportService());
+                context.accountService(), context.budgetService(), context.reportService(),
+                context.dashboardAdvisor());
 
         // The dashboard is the Observer's subscriber. Registered once, here,
         // so the wiring is visible rather than hidden inside the view.
@@ -92,5 +93,6 @@ public class MainView {
     /** Detaches the dashboard from the event bus so nothing is notified after shutdown. */
     public void dispose() {
         context.budgetEventBus().unsubscribe(dashboard);
+        dashboard.dispose();
     }
 }

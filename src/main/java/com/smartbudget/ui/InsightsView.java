@@ -168,7 +168,23 @@ class InsightsView implements RefreshableView {
         UiSupport.guard(() -> {
             anomalyService.recordUserDecision(selected.getId(), action);
             refresh();
+            reselect(selected.getId());
         });
+    }
+
+    /**
+     * Re-selects a row after {@link #refresh()} has replaced the table's items.
+     *
+     * <p>Without this the row the user just acted on deselects, so recording a
+     * decision looks like it did nothing.
+     */
+    private void reselect(int insightId) {
+        for (AIInsight insight : table.getItems()) {
+            if (insight.getId() == insightId) {
+                table.getSelectionModel().select(insight);
+                return;
+            }
+        }
     }
 
     @Override

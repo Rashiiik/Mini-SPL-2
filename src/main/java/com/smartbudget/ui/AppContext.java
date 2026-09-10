@@ -21,6 +21,7 @@ import com.smartbudget.persistence.dao.TransactionDao;
 import com.smartbudget.service.AccountService;
 import com.smartbudget.service.AnomalyService;
 import com.smartbudget.service.BudgetService;
+import com.smartbudget.service.DashboardAdvisor;
 import com.smartbudget.service.ReceiptService;
 import com.smartbudget.service.ReportService;
 import com.smartbudget.service.SubscriptionService;
@@ -59,6 +60,7 @@ public class AppContext {
     private final ReceiptService receiptService;
     private final CommandHistory commandHistory;
     private final NaturalLanguageParser naturalLanguageParser;
+    private final DashboardAdvisor dashboardAdvisor;
 
     public AppContext() {
         this(Database.getInstance());
@@ -103,6 +105,7 @@ public class AppContext {
         this.receiptService = new ReceiptService(aiProvider);
         this.commandHistory = new CommandHistory();
         this.naturalLanguageParser = new NaturalLanguageParser(aiProvider);
+        this.dashboardAdvisor = new DashboardAdvisor(aiProvider, reportService, anomalyService);
     }
 
     public Database database() {
@@ -163,6 +166,10 @@ public class AppContext {
 
     public AIProvider aiProvider() {
         return aiProvider;
+    }
+
+    public DashboardAdvisor dashboardAdvisor() {
+        return dashboardAdvisor;
     }
 
     public void shutdown() {

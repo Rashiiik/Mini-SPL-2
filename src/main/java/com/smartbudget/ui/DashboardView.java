@@ -7,6 +7,7 @@ import com.smartbudget.pattern.observer.BudgetAlert;
 import com.smartbudget.pattern.observer.BudgetListener;
 import com.smartbudget.service.AccountService;
 import com.smartbudget.service.BudgetService;
+import com.smartbudget.service.DashboardAdvisor;
 import com.smartbudget.service.ReportService;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -22,6 +23,8 @@ import javafx.scene.layout.VBox;
 
 import java.time.YearMonth;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Overview screen, and the Observer's subscriber.
@@ -37,18 +40,33 @@ class DashboardView implements RefreshableView, BudgetListener {
     private final AccountService accountService;
     private final BudgetService budgetService;
     private final ReportService reportService;
+    private final DashboardAdvisor advisor;
 
     private final VBox root = new VBox(14);
     private final FlowPane accountCards = new FlowPane(12, 12);
     private final VBox budgetRows = new VBox(8);
     private final VBox alertBanner = new VBox(4);
     private final Label summaryLabel = new Label();
+    private final VBox overviewBox = new VBox(4);
+    private final Label overviewText = new Label();
+    private final Label overviewSource = new Label();
+
+    /** One thread, so overlapping refreshes queue rather than race. */
+    private final ExecutorService overviewExecutor = Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "dashboard-overview");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    /** Identifies the newest request, so a slow earlier answer cannot overwrite it. */
+    private long overviewRequest;
 
     DashboardView(AccountService accountService, BudgetService budgetService,
-                  ReportService reportService) {
+                  ReportService reportService, DashboardAdvisor advisor) {
         this.accountService = accountService;
         this.budgetService = budgetService;
         this.reportService = reportService;
+        this.advisor = advisor;
         build();
     }
 
@@ -68,9 +86,19 @@ class DashboardView implements RefreshableView, BudgetListener {
 
         VBox alertSection = new VBox(6, alertHeader, alertBanner);
 
+        overviewText.setWrapText(true);
+        overviewText.setStyle("-fx-font-size: 13px;");
+        overviewSource.setStyle("-fx-font-size: 11px; -fx-text-fill: #666666;");
+        overviewBox.setPadding(new Insets(12));
+        overviewBox.setStyle("-fx-background-color: #eef4fb; -fx-border-color: #cfe0f1; "
+                + "-fx-border-radius: 6; -fx-background-radius: 6;");
+        overviewBox.getChildren().setAll(
+                UiSupport.subtitle("AI overview"), overviewText, overviewSource);
+
         root.getChildren().addAll(
                 UiSupport.title("Dashboard"),
                 summaryLabel,
+                overviewBox,
                 UiSupport.subtitle("Accounts"),
                 accountCards,
                 UiSupport.subtitle("This month's budgets"),
@@ -178,5 +206,38 @@ class DashboardView implements RefreshableView, BudgetListener {
                 UiSupport.money(reportService.totalIncome(month)),
                 UiSupport.money(reportService.totalSpent(month)),
                 UiSupport.signedMoney(reportService.netForMonth(month))));
+
+        refreshOverview(month);
+    }
+
+    /**
+     * Reads the month's figures here, then writes the briefing on a background
+     * thread, because that step may call out to a model over the network and the
+     * dashboard must not freeze while it does.
+     */
+    private void refreshOverview(YearMonth month) {
+        DashboardAdvisor.Briefing briefing = advisor.gather(month);
+
+        if (overviewText.getText().isEmpty()) {
+            overviewText.setText("Reading this month's figures…");
+        }
+
+        long request = ++overviewRequest;
+        overviewExecutor.execute(() -> {
+            DashboardAdvisor.Overview overview = advisor.explain(briefing);
+            Platform.runLater(() -> {
+                if (request == overviewRequest) {
+                    overviewText.setText(overview.text());
+                    overviewSource.setText(overview.fromModel()
+                            ? "Written by " + advisor.providerName() + " from the figures on this page."
+                            : "Generated directly from the figures on this page.");
+                }
+            });
+        });
+    }
+
+    /** Stops the background writer when the application closes. */
+    void dispose() {
+        overviewExecutor.shutdownNow();
     }
 }
