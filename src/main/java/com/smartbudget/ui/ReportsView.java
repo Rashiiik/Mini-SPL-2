@@ -62,7 +62,11 @@ class ReportsView implements RefreshableView {
 
         breakdownChart.setTitle("Spending by category");
         breakdownChart.setPrefHeight(320);
-        breakdownChart.setLabelsVisible(true);
+        // Slice labels are positioned by PieChart during layout, and land on top
+        // of one another when the data is set while this tab is not on screen.
+        // The legend carries the same "Category (amount)" text and lays out reliably.
+        breakdownChart.setLabelsVisible(false);
+        breakdownChart.setLegendVisible(true);
 
         TableColumn<BudgetAlert, String> categoryColumn = new TableColumn<>("Category");
         categoryColumn.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().categoryName()));
